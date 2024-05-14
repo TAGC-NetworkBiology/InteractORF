@@ -2,3 +2,34 @@ test to push in this project:
 
 step 1:
 git add, commit and push directly.
+Using username and password doesn't work:
+Username for 'https://github.com': LouBergogne
+Password for 'https://LouBergogne@github.com': 
+remote: Support for password authentication was removed on August 13, 2021.
+remote: Please see https://docs.github.com/get-started/getting-started-with-git/about-remote-repositories#cloning-with-https-urls for information on currently recommended modes of authentication.
+fatal: Authentication failed for 'https://github.com/TAGC-NetworkBiology/InteractORF.git/'
+
+
+Step 2: create an access token:
+- In a very private folder on you computer create an empty text file (called InteractORF_token.txt in the folder MyPrivateTokens for example)
+- Go on GitHub
+- Go Instead of your personal projects, go to Network Biology team project
+- click on InteractORF
+- right upper corner, click your acount icon
+- go to 'settings'
+- go to 'developper settings'
+- go to 'Personal access tokens' > 'Tokens (classic)
+- click on the link to generate a personal access token
+- enter your password
+- in Note: write 'InteractORF_token'
+- in expiration: select 'no expiration'
+- check all the boxes to grant yourself all permissions
+- click on generate token
+- MAKE SURE TO CAREFULLY COPY THE TOKEN IN THE TEXT FILE YOU CREATED (as you won't see it again) before to quit the window (or not if you want to test the following steps to be sure)
+- go to your local interactorf repository
+- run 'git add .'
+- run 'git commit -m "update interactORF monycytes blabla'
+- run 'git push'
+- enter your github username
+- DON'T ENTER YOUR OWN PASSWORD BUT THE FILE TOKEN HERE !!!
+- Enjoy :)
