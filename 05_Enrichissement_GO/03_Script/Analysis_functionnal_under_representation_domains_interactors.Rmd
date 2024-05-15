@@ -1,0 +1,712 @@
+---
+title: Analyse sous représentation fonctionnelle des Protéines interagissant avec les domaines
+  des sORFs
+author: "Slivak Mathilde"
+date: "2024-02-12"
+output:
+  rmarkdown::html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: cerulean
+---
+
+## Sous représentation fonctionnelle des protéines interagissant avec les domaines des sORFs (contre l'interactome entier des monocytes)
+
+L'objectif de cette analyse est d'étudier la sous représentation fonctionnelle des protéines interagissant avec les domaines des sORFs. Pour ce faire, nous avons réalisé un test de sous-representation en termes GO via g:profiler, en comparant les termes GO associés aux interacteurs (domaine-domaine) des sORFs à l'ensemble de l'interactome des monocytes.
+
+Cette analyse vise à répondre à la question biologique suivante : __Y a-t-il une fonction sous représentée parmi les interacteurs des sORFs contenant des domaines au sein des monocytes?__
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(DT)
+library(ggplot2)
+library(GSEABase)
+library(tidyverse)
+library(devtools)
+```
+
+
+Le backgrownd de cette anlayse est l'interactome complet des monocytes. 
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+
+
+data <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/01_Reference/gProfiler_results/gProfiler_hsapiens_27-02-2024 14-39-55__intersections.csv", header = TRUE)
+
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 30,  # Nombre d'entrées par page
+  autoWidth = TRUE)  # Ajustement automatique de la largeur des colonnes
+
+
+```
+
+```{r, out.width="130%", echo=FALSE}
+# Ajouter un titre au tableau et afficher le tableau avec le style personnalisé
+datatable(data, options = style, caption = "Résultat de l'enrichissement fonctionnel ")
+```
+
+### Analyse des sous représentations en GO termes avec les meilleures p-values
+
+```{r, echo=FALSE, include=FALSE}
+data_filtered <- data %>%
+  filter(source %in% c('GO:MF', 'GO:BP', 'GO:CC')) %>%
+  group_by(source) %>%
+  arrange(adjusted_p_value) %>%
+  top_n(30, wt = -adjusted_p_value)  # Sélectionne les 30 meilleurs résultats par facet
+
+best_pval <- ggplot(data_filtered, aes(x = reorder(term_name, negative_log10_of_adjusted_p_value), y = negative_log10_of_adjusted_p_value, fill = intersection_size)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "blue", high = "red") +  # Spécifie les limites de la légende
+  facet_wrap(~ source, scales = "free_y", nrow = 3) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "GO Name", y = "-log10 pval", fill = "number of occurences") +
+  theme(axis.text.y = element_text(hjust = 1, size = 60),
+        axis.text.x = element_text(size = 60),
+        axis.title = element_text(size = 60),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 60),
+        legend.title = element_text(size = 60),
+        plot.title = element_text(size = 60),
+        plot.subtitle = element_text(size = 60),
+        strip.text = element_text(size = 60)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+  
+```
+
+
+```{r, out.width="130%", fig.asp=1.6, echo=FALSE, fig.height=3, fig.width=60}
+plot(best_pval)
+```
+
+
+### Analyse des GO slims associés aux termes GO significativement sous représentés dans les interacteurs des sORFs.
+
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+
+#########################################RUN POUR SLIM MF###########################################"
+GO_MF_list <- data %>%
+  filter(source == "GO:MF") %>%
+  pull(term_id)
+
+
+myIds <- GO_MF_list
+myCollection <- GOCollection(myIds)
+fl <- system.file("extdata", "goslim_generic.obo", package="GSEABase")
+slim <- getOBOCollection(fl)
+
+# Sets ontology category to "Molecular Function". Use "BP" for "Biological Process"
+slimdf <- goSlim(myCollection, slim, ontology = "MF")
+
+# This should match the ontology used above.
+# E.g. GOBPOFFSPRING or GOCCOFFSPRING
+GO.db::GOMFOFFSPRING
+
+
+mappedIds <-
+  function(df, collection, OFFSPRING)
+  {
+    map <- as.list(OFFSPRING[rownames(df)])
+    mapped <- lapply(map, intersect, ids(collection))
+    df[["go_terms"]] <- vapply(unname(mapped), paste, collapse = ";", character(1L))
+    df
+  }
+
+slim_MF <- mappedIds(slimdf, myCollection, GOMFOFFSPRING)
+
+write.table(slim_MF, file = "/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/slimGO_MF_associés_interacteurs_dd.csv", quote = FALSE, sep = '\t')
+
+######################################### RUN POUR SLIM BP ##########################
+GO_BP_list <- data %>%
+  filter(source == "GO:BP") %>%
+  pull(term_id)
+
+
+myIds <- GO_BP_list
+myCollection <- GOCollection(myIds)
+fl <- system.file("extdata", "goslim_generic.obo", package="GSEABase")
+slim <- getOBOCollection(fl)
+
+# Sets ontology category to "Molecular Function". Use "BP" for "Biological Process"
+slimdf <- goSlim(myCollection, slim, ontology = "BP")
+
+# This should match the ontology used above.
+# E.g. GOBPOFFSPRING or GOCCOFFSPRING
+GO.db::GOBPOFFSPRING
+
+
+mappedIds <-
+  function(df, collection, OFFSPRING)
+  {
+    map <- as.list(OFFSPRING[rownames(df)])
+    mapped <- lapply(map, intersect, ids(collection))
+    df[["go_terms"]] <- vapply(unname(mapped), paste, collapse = ";", character(1L))
+    df
+  }
+
+slim_BP <- mappedIds(slimdf, myCollection, GOBPOFFSPRING)
+
+write.table(slim_BP, file = "/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/slimGO_BP_associés_interacteurs_dd.csv", quote = FALSE, sep = '\t')
+
+#############################################RUN POUR SLIM CC########################################################
+GO_CC_list <- data %>%
+  filter(source == "GO:CC") %>%
+  pull(term_id)
+
+
+myIds <- GO_CC_list
+myCollection <- GOCollection(myIds)
+fl <- system.file("extdata", "goslim_generic.obo", package="GSEABase")
+slim <- getOBOCollection(fl)
+
+# Sets ontology category to "Molecular Function". Use "BP" for "Biological Process"
+slimdf <- goSlim(myCollection, slim, ontology = "CC")
+
+# This should match the ontology used above.
+# E.g. GOBPOFFSPRING or GOCCOFFSPRING
+GO.db::GOCCOFFSPRING
+
+
+mappedIds <-
+  function(df, collection, OFFSPRING)
+  {
+    map <- as.list(OFFSPRING[rownames(df)])
+    mapped <- lapply(map, intersect, ids(collection))
+    df[["go_terms"]] <- vapply(unname(mapped), paste, collapse = ";", character(1L))
+    df
+  }
+
+slim_CC <- mappedIds(slimdf, myCollection, GOCCOFFSPRING)
+
+write.table(slim_CC, file = "/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/slimGO_CC_associés_interacteurs_dd.csv", quote = FALSE, sep = '\t')
+```
+
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+library(dplyr)
+
+# Ajouter une colonne 'source' avec les valeurs appropriées et nommer la première colonne
+slim_CC <- slim_CC %>%
+  mutate(source = "GO:CC")
+
+slim_BP <- slim_BP %>%
+  mutate(source = "GO:BP")
+
+slim_MF <- slim_MF %>%
+  mutate(source = "GO:MF")
+
+# Réorganiser les colonnes pour avoir 'source' en première position et renommer la première colonne
+slim_CC <- slim_CC %>%
+  dplyr::select(source, everything())
+
+slim_BP <- slim_BP %>%
+  dplyr::select(source, everything())
+
+slim_MF <- slim_MF %>%
+  dplyr::select(source, everything())
+
+# Concaténer les trois dataframes en un seul
+slim_combined <- bind_rows(slim_CC, slim_BP, slim_MF)
+
+data_filtered_occurrences <- slim_combined %>%
+  filter(Count > 0)
+
+slimGO <- data_filtered_occurrences %>%
+  ggplot(aes(x = reorder(Term, -Count), y = Count, fill = Percent)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradientn(colors = c("blue", "red"), 
+                      values = scales::rescale(c(0, 40)),  # Définit les valeurs à associer aux couleurs
+                      breaks = scales::pretty_breaks(n = 10),  # Définit le nombre de niveaux de couleur
+                      guide = "colorbar") +  # Ajoute une légende de la barre de couleur+
+  facet_wrap(~ source, scales = "free_y", nrow = 3) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "GO Name", y = "Number of Occurrences", fill = "Percentage") +
+  theme(axis.text.y = element_text(hjust = 1, size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title = element_text(size = 10),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.title = element_text(size = 10),
+        plot.subtitle = element_text(size = 10),
+        strip.text = element_text(size = 10)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+
+```
+
+
+```{r, out.width="130%", fig.asp=2, echo=FALSE}
+datatable(data_filtered_occurrences, options = style, caption = "Résultat de l'association des GO slim aux GO significativement enrichis dans les interacteurs ")
+# Afficher les graphiques
+plot(slimGO)
+```
+```{r, out.width="130%", echo=FALSE}
+# Diviser les données en trois dataframes selon les sources
+df_CC <- data_filtered_occurrences[data_filtered_occurrences$source == "GO:CC", ]
+df_BP <- data_filtered_occurrences[data_filtered_occurrences$source == "GO:BP", ]
+df_MF <- data_filtered_occurrences[data_filtered_occurrences$source == "GO:MF", ]
+
+# Fonction pour sélectionner les 10 termes avec les pourcentages les plus élevés
+select_top_terms <- function(df) {
+  top_terms <- df %>% arrange(desc(Percent)) %>% head(10)
+  other_percentage <- sum(df$Percent) - sum(top_terms$Percent)
+  other_row <- data.frame(matrix(NA, nrow = 1, ncol = ncol(df)))
+  colnames(other_row) <- colnames(df)
+  other_row$Percent <- other_percentage
+  other_row$Term <- "Other"
+  rbind(top_terms, other_row)
+}
+
+# Sélectionner les 10 termes avec les pourcentages les plus élevés pour chaque dataframe
+df_CC_selected <- select_top_terms(df_CC)
+df_BP_selected <- select_top_terms(df_BP)
+df_MF_selected <- select_top_terms(df_MF)
+
+# Créer les camemberts en organisant les parts de la plus grande à la plus petite
+plot_CC <- ggplot(df_CC_selected, aes(x = "", y = Percent, fill = reorder(Term, -Percent))) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_stack(vjust = 0.5), color = "white", size = 3) + # Ajouter les pourcentages à l'intérieur des barres
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_manual(values = scales::hue_pal()(nrow(df_CC_selected))) + # Maintenir les couleurs d'origine
+  labs(title = "GO:CC", fill = "GO term") + # Modifier le titre de la légende
+  theme(legend.title = element_text(size = 12)) # Ajuster la taille du titre de la légende
+
+plot_BP <- ggplot(df_BP_selected, aes(x = "", y = Percent, fill = reorder(Term, -Percent))) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_stack(vjust = 0.5), color = "white", size = 3) + # Ajouter les pourcentages à l'intérieur des barres
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_manual(values = scales::hue_pal()(nrow(df_BP_selected))) + # Maintenir les couleurs d'origine
+  labs(title = "GO:BP", fill = "GO term") + # Modifier le titre de la légende
+  theme(legend.title = element_text(size = 12)) # Ajuster la taille du titre de la légende
+
+plot_MF <- ggplot(df_MF_selected, aes(x = "", y = Percent, fill = reorder(Term, -Percent))) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_stack(vjust = 0.5), color = "white", size = 3) + # Ajouter les pourcentages à l'intérieur des barres
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_manual(values = scales::hue_pal()(nrow(df_MF_selected))) + # Maintenir les couleurs d'origine
+  labs(title = "GO:MF", fill = "GO term") + # Modifier le titre de la légende
+  theme(legend.title = element_text(size = 12)) # Ajuster la taille du titre de la légende
+
+
+```
+
+```{r, out.width="130%", echo=FALSE}
+plot(plot_BP)
+plot(plot_CC)
+plot(plot_MF)
+```
+
+### Analyse des sous-représentations en terme Kegg Reactome avec les meilleurs pval
+
+
+```{r, echo=FALSE, include=FALSE}
+
+
+data_filtered_REAC <- data %>%
+  filter(source %in% c('REAC')) %>%
+  group_by(source) %>%
+  arrange(adjusted_p_value) %>%
+  top_n(30, wt = -adjusted_p_value)  # Sélectionne les 30 meilleurs résultats par facet
+
+best_pval_REAC <- ggplot(data_filtered_REAC, aes(x = reorder(term_name, negative_log10_of_adjusted_p_value), y = negative_log10_of_adjusted_p_value, fill = intersection_size)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "blue", high = "red") +  # Spécifie les limites de la légende
+  theme_minimal() +
+  theme(axis.text.x = element_text(hjust = 1, size =40, angle = 75, vjust = 1),
+        axis.text.y = element_text(size = 30),
+        axis.title = element_text(size = 40),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 40),
+        legend.title = element_text(size = 40),
+        plot.title = element_text(size = 40),
+        plot.subtitle = element_text(size = 40),
+        strip.text = element_text(size = 40)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+```
+
+```{r, fig.height=30, fig.align='right', fig.width=45,  out.width="130%", echo=FALSE}
+plot(best_pval_REAC)
+```
+
+```{r, echo=FALSE, include=FALSE}
+
+# Charger les données depuis le fichier CSV
+simplified_REACT <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/Sipmified_REAC/simplified_REAC_gProfiler_hsapiens_27-02-2024 14-39-55__intersections.csv", header = TRUE, sep=",")
+
+# Assuming df is your dataframe
+# Step 1: Replace empty cells with 'Root term'
+simplified_REACT$Description[which(simplified_REACT$Description == "")] <- "Root term"
+
+# Step 2 & 3: Count occurrences and calculate percentages
+description_counts <- simplified_REACT %>%
+  group_by(Description) %>%
+  summarise(Count = n()) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100)
+
+# Step 4: Modify the code to reorder the factor levels
+top_descriptions <- description_counts %>%
+  arrange(desc(Percentage)) %>%
+  mutate(Description = ifelse(row_number() <= 10, as.character(Description), "Other")) %>%
+  group_by(Description) %>%
+  summarise(Percentage = sum(Percentage)) %>%
+  mutate(Description = factor(Description, levels = Description)) %>%
+  arrange(desc(Percentage))
+
+# Step 5: Plot a pie chart with segments ordered by size
+Simpl_REAC_chart <- ggplot(top_descriptions, aes(x = "", y = Percentage, fill = Description)) +
+  geom_bar(width = 1, stat = "identity", color = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() +
+  geom_text(aes(label = paste0(round(Percentage, 1), "%")), position = position_stack(vjust = 0.5)) +
+  scale_fill_manual(values = rainbow(length(top_descriptions$Description)))
+```
+```{r, out.width="130%", echo=FALSE}
+plot(Simpl_REAC_chart)
+```
+### Analyse des sous-representations en terme Wiki pathways avec les meilleurs pval
+Les protéines intéragissant avec les domaines des sORFS ne présentent pas de sous-représentation significative en terme WP par rapport aux protéome des monocytes. 
+
+### Analyse de la sous représentation en terme Human proteome ontology avec les meilleurs pval
+```{r, echo=FALSE, include=FALSE}
+
+
+data_filtered_HP <- data %>%
+  filter(source %in% c('HP')) %>%
+  group_by(source) %>%
+  arrange(adjusted_p_value) %>%
+  top_n(30, wt = -adjusted_p_value)  # Sélectionne les 30 meilleurs résultats par facet
+
+best_pval_HP <- ggplot(data_filtered_HP, aes(x = reorder(term_name, negative_log10_of_adjusted_p_value), y = negative_log10_of_adjusted_p_value, fill = intersection_size)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "blue", high = "red") +  # Spécifie les limites de la légende
+  theme_minimal() +
+  theme(axis.text.x = element_text(hjust = 1, size =40, angle = 75, vjust = 1),
+        axis.text.y = element_text(size = 30),
+        axis.title = element_text(size = 40),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 40),
+        legend.title = element_text(size = 40),
+        plot.title = element_text(size = 40),
+        plot.subtitle = element_text(size = 40),
+        strip.text = element_text(size = 40)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+```
+
+```{r, fig.height=30, fig.align='right', fig.width=45,  out.width="130%", echo=FALSE}
+plot(best_pval_HP)
+```
+
+## Sous représentation fonctionnelle des protéines interagissant avec les domaines des sORFs (contre l'ensemble des protines intéragissant avec les sORFs)
+
+L'objectif de cette analyse est d'étudier la sous représentation fonctionnelle des protéines interagissant via des interactions domaine-domaine avec les sORFs. Pour ce faire, nous avons réalisé un test de sous représentation en termes GO via g:profiler, en comparant les termes GO associés aux interacteurs liés aux domaines des sORFs à l'ensemble des interacteurs des sORFs (interagissant soit avec les domaines des sORFs soit avec les slim des sORFs).
+
+Cette analyse vise à répondre à la question biologique suivante :
+__Y a-t-il une fonction sous représentée parmi les protéines qui interagissent spécifiquement avec les domaines des sORFs parmi tous les interacteurs des sORFs?__
+
+
+Le backgrownd de cette anlayse est l'ensemble des intéracteurs des sORFs. 
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+
+
+data <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/01_Reference/gProfiler_results/gProfiler_hsapiens_27-02-2024 14-43-22__intersections.csv", header = TRUE)
+
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 30,  # Nombre d'entrées par page
+  autoWidth = TRUE)  # Ajustement automatique de la largeur des colonnes
+
+
+```
+
+```{r, out.width="130%", echo=FALSE}
+# Ajouter un titre au tableau et afficher le tableau avec le style personnalisé
+datatable(data, options = style, caption = "Résultat de l'enrichissement fonctionnel ")
+```
+
+### Analyse des sous représentations en GO termes avec les meilleures p-values
+
+```{r, echo=FALSE, include=FALSE}
+data_filtered <- data %>%
+  filter(source %in% c('GO:MF', 'GO:BP', 'GO:CC')) %>%
+  group_by(source) %>%
+  arrange(adjusted_p_value) %>%
+  top_n(30, wt = -adjusted_p_value)  # Sélectionne les 30 meilleurs résultats par facet
+
+best_pval <- ggplot(data_filtered, aes(x = reorder(term_name, negative_log10_of_adjusted_p_value), y = negative_log10_of_adjusted_p_value, fill = intersection_size)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "blue", high = "red") +  # Spécifie les limites de la légende
+  facet_wrap(~ source, scales = "free_y", nrow = 3) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "GO Name", y = "-log10 pval", fill = "number of occurences") +
+  theme(axis.text.y = element_text(hjust = 1, size = 60),
+        axis.text.x = element_text(size = 60),
+        axis.title = element_text(size = 60),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 60),
+        legend.title = element_text(size = 60),
+        plot.title = element_text(size = 60),
+        plot.subtitle = element_text(size = 60),
+        strip.text = element_text(size = 60)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+  
+```
+
+
+```{r, out.width="130%", fig.asp=1.6, echo=FALSE, fig.height=3, fig.width=60}
+plot(best_pval)
+```
+
+### Analyse des sous-représentations en GO termes avec le plus grand nombre d'occurence
+
+```{r, include=FALSE}
+data_filtered_occurences <- data %>%
+  filter(source %in% c('GO:MF', 'GO:BP', 'GO:CC')) %>%
+  group_by(source) %>%
+  arrange(intersection_size) %>%
+  top_n(30, wt = intersection_size)  # Sélectionne les 30 meilleurs résultats par facet
+
+best_occurences <- ggplot(data_filtered_occurences, aes(x = reorder(term_name, negative_log10_of_adjusted_p_value), y = negative_log10_of_adjusted_p_value, fill = intersection_size)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradient(low = "blue", high = "red") +  # Spécifie les limites de la légende
+  facet_wrap(~ source, scales = "free_y", nrow = 3) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "GO Name", y = "-log10 pval", fill = "number of occurences") +
+  theme(axis.text.y = element_text(hjust = 1, size = 60),
+        axis.text.x = element_text(size = 60),
+        axis.title = element_text(size = 60),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 60),
+        legend.title = element_text(size = 60),
+        plot.title = element_text(size = 60),
+        plot.subtitle = element_text(size = 60),
+        strip.text = element_text(size = 60)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+```
+
+```{r, out.width="130%", fig.asp=1.7, fig.height=3, fig.width=60, echo=FALSE}
+plot(best_occurences)
+```
+
+### Analyse des GO slims associés aux termes GO significativement sous représentés dans les interacteurs des sORFs.
+
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+
+#########################################RUN POUR SLIM MF###########################################"
+GO_MF_list <- data %>%
+  filter(source == "GO:MF") %>%
+  pull(term_id)
+
+
+myIds <- GO_MF_list
+myCollection <- GOCollection(myIds)
+fl <- system.file("extdata", "goslim_generic.obo", package="GSEABase")
+slim <- getOBOCollection(fl)
+
+# Sets ontology category to "Molecular Function". Use "BP" for "Biological Process"
+slimdf <- goSlim(myCollection, slim, ontology = "MF")
+
+# This should match the ontology used above.
+# E.g. GOBPOFFSPRING or GOCCOFFSPRING
+GO.db::GOMFOFFSPRING
+
+
+mappedIds <-
+  function(df, collection, OFFSPRING)
+  {
+    map <- as.list(OFFSPRING[rownames(df)])
+    mapped <- lapply(map, intersect, ids(collection))
+    df[["go_terms"]] <- vapply(unname(mapped), paste, collapse = ";", character(1L))
+    df
+  }
+
+slim_MF <- mappedIds(slimdf, myCollection, GOMFOFFSPRING)
+
+write.table(slim_MF, file = "/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/slimGO_MF_associés_interacteurs_dd.csv", quote = FALSE, sep = '\t')
+
+######################################### RUN POUR SLIM BP ##########################
+GO_BP_list <- data %>%
+  filter(source == "GO:BP") %>%
+  pull(term_id)
+
+
+myIds <- GO_BP_list
+myCollection <- GOCollection(myIds)
+fl <- system.file("extdata", "goslim_generic.obo", package="GSEABase")
+slim <- getOBOCollection(fl)
+
+# Sets ontology category to "Molecular Function". Use "BP" for "Biological Process"
+slimdf <- goSlim(myCollection, slim, ontology = "BP")
+
+# This should match the ontology used above.
+# E.g. GOBPOFFSPRING or GOCCOFFSPRING
+GO.db::GOBPOFFSPRING
+
+
+mappedIds <-
+  function(df, collection, OFFSPRING)
+  {
+    map <- as.list(OFFSPRING[rownames(df)])
+    mapped <- lapply(map, intersect, ids(collection))
+    df[["go_terms"]] <- vapply(unname(mapped), paste, collapse = ";", character(1L))
+    df
+  }
+
+slim_BP <- mappedIds(slimdf, myCollection, GOBPOFFSPRING)
+
+write.table(slim_BP, file = "/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/slimGO_BP_associés_interacteurs_dd.csv", quote = FALSE, sep = '\t')
+
+#############################################RUN POUR SLIM CC########################################################
+GO_CC_list <- data %>%
+  filter(source == "GO:CC") %>%
+  pull(term_id)
+
+
+myIds <- GO_CC_list
+myCollection <- GOCollection(myIds)
+fl <- system.file("extdata", "goslim_generic.obo", package="GSEABase")
+slim <- getOBOCollection(fl)
+
+# Sets ontology category to "Molecular Function". Use "BP" for "Biological Process"
+slimdf <- goSlim(myCollection, slim, ontology = "CC")
+
+# This should match the ontology used above.
+# E.g. GOBPOFFSPRING or GOCCOFFSPRING
+GO.db::GOCCOFFSPRING
+
+
+mappedIds <-
+  function(df, collection, OFFSPRING)
+  {
+    map <- as.list(OFFSPRING[rownames(df)])
+    mapped <- lapply(map, intersect, ids(collection))
+    df[["go_terms"]] <- vapply(unname(mapped), paste, collapse = ";", character(1L))
+    df
+  }
+
+slim_CC <- mappedIds(slimdf, myCollection, GOCCOFFSPRING)
+
+write.table(slim_CC, file = "/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/05_Output/slimGO_CC_associés_interacteurs_dd.csv", quote = FALSE, sep = '\t')
+```
+
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+library(dplyr)
+
+# Ajouter une colonne 'source' avec les valeurs appropriées et nommer la première colonne
+slim_CC <- slim_CC %>%
+  mutate(source = "GO:CC")
+
+slim_BP <- slim_BP %>%
+  mutate(source = "GO:BP")
+
+slim_MF <- slim_MF %>%
+  mutate(source = "GO:MF")
+
+# Réorganiser les colonnes pour avoir 'source' en première position et renommer la première colonne
+slim_CC <- slim_CC %>%
+  dplyr::select(source, everything())
+
+slim_BP <- slim_BP %>%
+  dplyr::select(source, everything())
+
+slim_MF <- slim_MF %>%
+  dplyr::select(source, everything())
+
+# Concaténer les trois dataframes en un seul
+slim_combined <- bind_rows(slim_CC, slim_BP, slim_MF)
+
+data_filtered_occurrences <- slim_combined %>%
+  filter(Count > 0)
+
+slimGO <- data_filtered_occurrences %>%
+  ggplot(aes(x = reorder(Term, -Count), y = Count, fill = Percent)) +
+  geom_bar(stat = "identity") +
+  scale_fill_gradientn(colors = c("blue", "red"), 
+                      values = scales::rescale(c(0, 40)),  # Définit les valeurs à associer aux couleurs
+                      breaks = scales::pretty_breaks(n = 10),  # Définit le nombre de niveaux de couleur
+                      guide = "colorbar") +  # Ajoute une légende de la barre de couleur+
+  facet_wrap(~ source, scales = "free_y", nrow = 3) +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "GO Name", y = "Number of Occurrences", fill = "Percentage") +
+  theme(axis.text.y = element_text(hjust = 1, size = 10),
+        axis.text.x = element_text(size = 10),
+        axis.title = element_text(size = 10),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 10),
+        legend.title = element_text(size = 10),
+        plot.title = element_text(size = 10),
+        plot.subtitle = element_text(size = 10),
+        strip.text = element_text(size = 10)) +  # Ajuster la taille du titre des axes
+  guides(fill = guide_colorbar(barheight = unit(5, "inch")))  # Ajuster la hauteur de la barre de couleur de la légende
+
+```
+
+
+```{r, out.width="130%", fig.asp=2, echo=FALSE}
+datatable(data_filtered_occurrences, options = style, caption = "Résultat de l'association des GO slim aux GO significativement enrichis dans les interacteurs ")
+# Afficher les graphiques
+plot(slimGO)
+```
+```{r, out.width="130%", echo=FALSE}
+# Diviser les données en trois dataframes selon les sources
+df_CC <- data_filtered_occurrences[data_filtered_occurrences$source == "GO:CC", ]
+df_BP <- data_filtered_occurrences[data_filtered_occurrences$source == "GO:BP", ]
+df_MF <- data_filtered_occurrences[data_filtered_occurrences$source == "GO:MF", ]
+
+# Fonction pour sélectionner les 10 termes avec les pourcentages les plus élevés
+select_top_terms <- function(df) {
+  top_terms <- df %>% arrange(desc(Percent)) %>% head(10)
+  other_percentage <- sum(df$Percent) - sum(top_terms$Percent)
+  other_row <- data.frame(matrix(NA, nrow = 1, ncol = ncol(df)))
+  colnames(other_row) <- colnames(df)
+  other_row$Percent <- other_percentage
+  other_row$Term <- "Other"
+  rbind(top_terms, other_row)
+}
+
+# Sélectionner les 10 termes avec les pourcentages les plus élevés pour chaque dataframe
+df_CC_selected <- select_top_terms(df_CC)
+df_BP_selected <- select_top_terms(df_BP)
+df_MF_selected <- select_top_terms(df_MF)
+
+# Créer les camemberts en organisant les parts de la plus grande à la plus petite
+plot_CC <- ggplot(df_CC_selected, aes(x = "", y = Percent, fill = reorder(Term, -Percent))) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_stack(vjust = 0.5), color = "white", size = 3) + # Ajouter les pourcentages à l'intérieur des barres
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_manual(values = scales::hue_pal()(nrow(df_CC_selected))) + # Maintenir les couleurs d'origine
+  labs(title = "GO:CC", fill = "GO term") + # Modifier le titre de la légende
+  theme(legend.title = element_text(size = 12)) # Ajuster la taille du titre de la légende
+
+plot_BP <- ggplot(df_BP_selected, aes(x = "", y = Percent, fill = reorder(Term, -Percent))) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_stack(vjust = 0.5), color = "white", size = 3) + # Ajouter les pourcentages à l'intérieur des barres
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_manual(values = scales::hue_pal()(nrow(df_BP_selected))) + # Maintenir les couleurs d'origine
+  labs(title = "GO:BP", fill = "GO term") + # Modifier le titre de la légende
+  theme(legend.title = element_text(size = 12)) # Ajuster la taille du titre de la légende
+
+plot_MF <- ggplot(df_MF_selected, aes(x = "", y = Percent, fill = reorder(Term, -Percent))) +
+  geom_bar(stat = "identity", width = 1) +
+  geom_text(aes(label = paste0(round(Percent, 1), "%")), position = position_stack(vjust = 0.5), color = "white", size = 3) + # Ajouter les pourcentages à l'intérieur des barres
+  coord_polar("y", start = 0) +
+  theme_void() +
+  scale_fill_manual(values = scales::hue_pal()(nrow(df_MF_selected))) + # Maintenir les couleurs d'origine
+  labs(title = "GO:MF", fill = "GO term") + # Modifier le titre de la légende
+  theme(legend.title = element_text(size = 12)) # Ajuster la taille du titre de la légende
+
+
+```
+
+```{r, out.width="130%", echo=FALSE}
+plot(plot_BP)
+plot(plot_CC)
+plot(plot_MF)
+```
+

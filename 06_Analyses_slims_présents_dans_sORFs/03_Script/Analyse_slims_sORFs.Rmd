@@ -1,0 +1,118 @@
+---
+title: "Analyses_slims_dans_sORFs"
+author: "Slivak Mathilde"
+date: "2024-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+```
+
+
+
+
+```{r data, echo=FALSE, include=FALSE}
+# Chargement des données depuis le fichier CSV
+data <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/06_Analyses_slims_présents_dans_sORFs/01_Reference/dm_interactions_monocytes_SLiMpval001_ds04over80_cluster95.csv")
+
+data_unique <- distinct(data, Slim_Protein_acc, Slim_Motif, Slim_Start, Slim_End, .keep_all = TRUE)
+
+# Sauvegarde du dataframe sans duplicata dans un nouveau fichier CSV
+write.csv(data_unique, "liste_sORFs_slim.csv", row.names = FALSE)
+
+# Affichage des 6 premières lignes du dataframe pour vérification
+head(data_unique)
+```
+
+## Histogramme des slims présents dans les sORFs, coloré en fonction des classes de ELM
+```{r slim, echo=FALSE}
+# Création de l'histogramme avec ggplot2
+ggplot(data_unique, aes(x = Slim_Motif, fill = substr(Slim_Motif, 1, 3))) +
+  geom_bar(color = "black") +
+  scale_fill_manual(values = c("#d73027", "#fc8d59", "#fee090", "#e0f3f8", "#91bfdb", "#4575b4")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+## Histogramme des classes ELM des slims portés par les sORFs. 
+
+
+```{r classes slim, echo=FALSE}
+# Assignation des couleurs aux motifs
+data_unique <- mutate(data_unique, First_Three_Letters = substr(Slim_Motif, 1, 3))
+
+# Création de l'histogramme avec ggplot2
+ggplot(data_unique, aes(x = First_Three_Letters, fill = First_Three_Letters)) +
+  geom_bar(color = "black") +
+  scale_fill_manual(values = c("#d73027", "#fc8d59", "#fee090", "#e0f3f8", "#91bfdb", "#4575b4")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+
+```
+
+CLV = cleavage site
+
+DEG = degradation site
+
+DOC = Docking site
+
+LIG = ligand binding site
+
+MOD = post translational modification site
+
+TRG = targeting site
+
+## Slim avec le plus grand nombre d'occurence :
+```{r slims meilleure occurence, echo=FALSE}
+# Compter le nombre d'occurrences de chaque motif
+occurrences <- data_unique %>%
+  group_by(Slim_Motif) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))  # Trier par nombre d'occurrences décroissant
+
+# Ajouter la colonne Slim_Description correspondant au terme le plus fréquent pour chaque motif
+occurrences <- occurrences %>%
+  left_join(data, by = "Slim_Motif") %>%
+  group_by(Slim_Motif) %>%
+  slice(which.max(count)) %>%
+  select(Slim_Motif, Slim_Description, count) %>%
+  arrange(desc(count)) %>%
+  head(10)
+
+# Renommer les colonnes
+colnames(occurrences) <- c("Motif", "Description", "Occurrences")
+fonctions <- c(
+  "Cell cycle, DNA damage response",
+  "Metabolism, signalisation",
+  "DNA repair and checkpoint",
+  "Cell cycle checkpoint, DNA repair, transcriptional regulation",
+  "proteolytic processing of neuropeptide/peptide hormone precursor",
+  "Protein metabolism",
+  "proteolytic processing of neuropeptide/peptide hormone precursor",
+  "allows protein transport from cytosol to nucleus",
+  "ubiquitination of target proteins leading to their proteosomal degradation",
+  "Metabolism, signalisation"
+)
+
+occurrences <- ungroup(occurrences)
+
+# Ajouter la colonne Fonction à la table d'occurrences
+occurrences <- occurrences %>%
+  mutate(Fonction = fonctions)
+
+# Réorganiser l'ordre des colonnes
+occurrences <- occurrences %>%
+  select(Motif, Description, Fonction, Occurrences)
+
+# Afficher les résultats
+knitr::kable(occurrences, caption = "Top 10 des motifs avec le plus grand nombre d'occurrences et leur description")
+
+
+```
+

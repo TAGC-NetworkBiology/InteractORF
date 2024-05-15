@@ -1,0 +1,295 @@
+---
+title: "Analyse inferred sPEP functions"
+author: "Slivak Mathilde"
+date: "2024-04-15"
+output:
+  rmarkdown::html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: cerulean
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("rrvgo")
+# library(rrvgo)
+library(dplyr)
+library(ggplot2)
+```
+
+## Analyse de l'ensemble des fonctions inferrées aux sPEPs
+
+L'objectif de cette analyse est de visualiser les diverses fonctions attribuées aux clusters de protéines (basées sur le résultat d'OCG), par divers moyens d'annotations.
+
+En effet, si plusieurs protéines annotées avec la même fonctions interagissent avec un sPEP, cette fonction peut-être inferrée au sPEP en question en partant du principes que des protéines interagissent lorsqu'elles sont impliquées dans les mêmes processus.
+
+```{r data, include=FALSE}
+data <- read.csv("/home/slivak/Bureau/InteractORFs/Interactome_sORF_monocytes/08_Analyse_inferred_functions/05_Output/HighQualityGraph.LargestComponent.partition.BP.cluster.with.one.or.more.sPEP.csv", sep = ',')
+clusters_info <- readLines("~/Bureau/InteractORFs/Interactome_sORF_monocytes/07_OCG_interactome/05_Output/Enrichment_sORF_in_clusters.txt")
+
+```
+
+```{r inclure que cluster avec sPEP, include = FALSE, echo=FALSE}
+# Initialiser un dictionnaire pour stocker les valeurs de x pour chaque cluster
+clusters <- list()
+
+# Extraire les informations sur les clusters
+for (line in clusters_info) {
+  if (grepl("Cluster", line)) {
+    cluster_id <- as.numeric(gsub("Cluster (\\d+):.*", "\\1", line))
+    x_value <- as.numeric(gsub(".*x = (\\d+).*", "\\1", line))
+    clusters[[cluster_id]] <- x_value
+  }
+}
+
+
+
+# Supprimer les lignes correspondant aux clusters avec x = 0
+for (cluster_id in seq_along(clusters)) {
+  if (clusters[[cluster_id]] == 0) {
+    data <- data[data$ClassID != cluster_id, ]
+  }
+}
+
+data_parent <- read.csv("/home/slivak/Bureau/InteractORFs/Interactome_sORF_monocytes/08_Analyse_inferred_functions/05_Output/HighQualityGraph.LargestComponent.partition.BP.cluster.with.one.or.more.sPEP.and.parent.term.csv", sep = ',')
+# Créer une colonne "x_count" dans le fichier CSV avec le nombre de x pour chaque ClassID
+data_parent$x_count <- sapply(data$ClassID, function(id) clusters[[id]])
+
+
+```
+
+### Fonctions annotées pour plus de 50% des protéines d'un cluster
+
+La premiere facon d'annoter les protéines présentes dans un cluster est de chercher les fonctions associées à 50% ou plus des protéines d'un cluster. Si la majorité des protéines d'un cluster correspondent à une fonctions, alors les autres protéines du cluster peuvent être annotées avec cette même fonction.
+
+Cette facon d'annoter nos clusters a permi d'inferrer 154 fonctions différentes pour les clusters possédant au moins au sPEP.
+
+La figure ci dessous permet de visualiser les termes "parents" les plus présents dans les annotations inférées aux clusters possédant au moins 1 sPEP.
+
+```{r rvigo Majority Lax, include=FALSE}
+# Filtrer les lignes avec Majority Law égale à True
+data_filtre_majority_law <- subset(data, MajorityLaw == "True")
+
+
+
+library(rrvgo)
+simMatrix_ML <- calculateSimMatrix(data_filtre_majority_law$GoTermID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+reducedTerms_ML <- reduceSimMatrix(simMatrix_ML,
+                                threshold=0.65,
+                                orgdb="org.Hs.eg.db")
+# Tracer le treemap
+#reducedTerms <- head(reducedTerms, -1)
+treemapPlot(reducedTerms_ML)
+
+```
+
+```{r plot Majority Law, echo=FALSE}
+# Tracer le treemap
+treemapPlot(reducedTerms_ML)
+```
+
+### Fonctions significativement enrichies dans les clusters (loi hypergéométrique)
+
+La seconde façon d'annoter des cluster est d'utiliser les termes GO (ici <GO:BP>) significativement enrichis dans le cluster (loi hypergénométrique avec un p-value corrigée via FDR \<1e-5).
+
+Cette méthode d'annotation à permis d'inferrer 612 fonctions différentes aux clusters possédant au moins 1 sPEP.
+
+L'utilisation des p-value permet de mettre en avant dans la visualisation les termes les plus significatifs (p-value la plus basse) en avant, et donc d'apporter plus de précision sur les fonctions inférées aux sPEPs.
+
+```{r rvigo Hypergeometric, include=FALSE}
+# Filtrer les lignes avec HypergeometricLaw égale à True
+data_filtre_hypergeometric_law <- subset(data, HypergeometricLaw == "TRUE")
+
+
+
+library(rrvgo)
+simMatrix_HL <- calculateSimMatrix(data_filtre_hypergeometric_law$GoTermID,
+                                orgdb="org.Hs.eg.db",
+                                ont="BP",
+                                method="Rel")
+scores <- setNames(-log10(data_filtre_hypergeometric_law$FDR), data_filtre_hypergeometric_law$GoTermID)
+reducedTerms_HL <- reduceSimMatrix(simMatrix_HL,
+                                scores,
+                                threshold=0.7,
+                                orgdb="org.Hs.eg.db")
+
+```
+
+```{r plot Hypergeometric, echo=FALSE}
+# Tracer le treemap-1)
+treemapPlot(reducedTerms_HL)
+```
+
+## Analyse du nombres de sPEPS auxquels des fonctions ont été inferrées
+### Nombre de sPEPS inferrés avec des fonctions générales. 
+
+Pour étudier plus précisement les fonctions inferrées aux sPEPs, nous avons réalisé les comptages du nombre de sPEPs ayant été inférrés avec la même fonction. Dans un premier temps, nous ne nous interessons qu'aux 'parent terms', termes le plus haut dans l'ontologie et qui permette d'avoir une idée des mécnisme généraux dans lesquels les sPEPs sont impliqués. 
+
+```{r plot pecentage functions, include=FALSE}
+count_inferred_functions = read.csv("/home/slivak/Bureau/InteractORFs/Interactome_sORF_monocytes/08_Analyse_inferred_functions/05_Output/comptage_nb_sPEP_fonctions_inferrees.csv", sep=',')
+# Calculer le pourcentage de sPEP pour chaque parent term
+
+count_inferred_functions$percentage <- (count_inferred_functions$Number_of_sPEP / 1816) * 100
+
+# Load necessary libraries
+library(ggplot2)
+
+# Read the data
+count_inferred_functions <- read.csv("/home/slivak/Bureau/InteractORFs/Interactome_sORF_monocytes/08_Analyse_inferred_functions/05_Output/comptage_nb_sPEP_fonctions_inferrees.csv", sep=',')
+
+# Calculate percentage of sPEP for each parent term
+count_inferred_functions$percentage <- (count_inferred_functions$Number_of_sPEP / 1816) * 100
+
+# Plotting
+percentage_functions_sPEP <- ggplot(count_inferred_functions, aes(x = reorder(Parent.term, percentage), y = percentage)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = Number_of_sPEP), position = position_dodge(width = 1), vjust = -0.5, size = 15) +
+  coord_flip() +
+  labs(title = "Pecentage of inferred interaction",
+       x = "Parent Term",
+       y = "Percentage of sPEP") +
+  theme(axis.text.x = element_text(hjust = 1, size =70, vjust = 1, face = "bold"),
+        axis.text.y = element_text(size = 60, face = "bold"),
+        axis.title = element_text(size = 80),  # Ajuster la taille du titre des axes
+        legend.text = element_text(size = 80),
+        legend.title = element_text(size = 80),
+        plot.title = element_text(size = 60, face = "bold"),
+        plot.subtitle = element_text(size = 60, face= "bold"),
+        strip.text = element_text(size = 60))
+
+
+ 
+```
+
+```{r, out.width="80%", fig.asp=1.7, echo=FALSE, fig.height=3, fig.width=40}
+plot(percentage_functions_sPEP)
+```
+
+### Etude des GO termes exact inferés aux sPEPS
+
+```{r, out.width="100%", fig.asp=1.2, echo=FALSE, fig.height=3, fig.width=40, warning=FALSE, show_col_types = FALSE}
+library(tidyverse)
+
+# Charger les données depuis le fichier CSV
+Count_exact_GO_terms_infered_to_sPEP <- read_csv("/home/slivak/Bureau/InteractORFs/Interactome_sORF_monocytes/08_Analyse_inferred_functions/05_Output/comptage_GO_exact_inferrés_aux_sPEPs.csv")
+
+# Remplacer les valeurs manquantes dans Parent term par "NA"
+Count_exact_GO_terms_infered_to_sPEP <- Count_exact_GO_terms_infered_to_sPEP %>%
+  mutate(`Parent term` = if_else(is.na(`Parent term`), "NA", `Parent term`))
+
+# Calculer les pourcentages pour chaque GO:BP dans chaque groupe Parent term
+Count_exact_GO_terms_infered_to_sPEP <- Count_exact_GO_terms_infered_to_sPEP %>%
+  group_by(`Parent term`) %>%
+  mutate(Percentage = (Number_of_sPEP / 1816) * 100)
+
+# Créer les graphiques à barres pour chaque groupe Parent term
+for (parent_term in unique(Count_exact_GO_terms_infered_to_sPEP$`Parent term`)) {
+  subset_data <- Count_exact_GO_terms_infered_to_sPEP %>%
+    filter(`Parent term` == parent_term)
+  
+  if (parent_term == "NA") {
+    # Diviser les données en groupes de 30 GO:BP maximum
+    num_groups <- ceiling(nrow(subset_data) / 30)
+    for (i in 1:num_groups) {
+      start_index <- (i - 1) * 30 + 1
+      end_index <- min(i * 30, nrow(subset_data))
+      subset_data_group <- subset_data[start_index:end_index, ]
+      
+      plot <- ggplot(subset_data_group, aes(x = reorder(`GO:BP`, Percentage), y = Percentage)) +
+        geom_bar(stat = "identity", fill = "steelblue") +
+        geom_text(aes(label = Number_of_sPEP), position = position_dodge(width = 1), vjust = -0.5, size = 15) +
+        coord_flip() +
+        labs(title = paste("Parent term:", parent_term),
+             x = "GO:BP",
+             y = "Percentage") +
+        theme(axis.text.x = element_text(hjust = 1, size = 40, vjust = 1, face = "bold"),
+              axis.text.y = element_text(size = 40, face = "bold"),
+              axis.title = element_text(size = 60),  # Ajuster la taille du titre des axes
+              legend.text = element_text(size = 60),
+              legend.title = element_text(size = 60),
+              plot.title = element_text(size = 60, face = "bold"),
+              plot.subtitle = element_text(size = 40, face = "bold"),
+              strip.text = element_text(size = 40)) +
+        scale_y_continuous(limits = c(0, 110), breaks = seq(0, 100, by = 10),
+                           labels = function(x) ifelse(x == 100, "100", as.character(x)))
+      
+      print(plot)  # Imprimer chaque graphique
+    }
+  } else {
+    plot <- ggplot(subset_data, aes(x = reorder(`GO:BP`, Percentage), y = Percentage)) +
+      geom_bar(stat = "identity", fill = "steelblue") +
+      geom_text(aes(label = Number_of_sPEP), position = position_dodge(width = 1), vjust = -0.5, size = 15) +
+      coord_flip() +
+      labs(title = paste("Parent term:", parent_term),
+           x = "GO:BP",
+           y = "Percentage of sPEP annotated with the function") +
+      theme(axis.text.x = element_text(hjust = 1, size = 40, vjust = 1, face = "bold"),
+            axis.text.y = element_text(size = 40, face = "bold"),
+            axis.title = element_text(size = 60),  # Ajuster la taille du titre des axes
+            legend.text = element_text(size = 60),
+            legend.title = element_text(size = 60),
+            plot.title = element_text(size = 60, face = "bold"),
+            plot.subtitle = element_text(size = 40, face = "bold"),
+            strip.text = element_text(size = 40)) +
+      scale_y_continuous(limits = c(0, 110), breaks = seq(0, 100, by = 10),
+                         labels = function(x) ifelse(x == 100, "100", as.character(x)))
+    
+    print(plot)  # Imprimer chaque graphique
+  }
+}
+
+```
+```{r, out.width="100%", fig.asp=1.2, echo=FALSE, fig.height=3, fig.width=40, warning=FALSE, show_col_types = FALSE}
+library(tidyverse)
+
+# Charger les données depuis le fichier CSV
+Count_exact_GO_terms_infered_to_sPEP <- read_csv("/home/slivak/Bureau/InteractORFs/Interactome_sORF_monocytes/08_Analyse_inferred_functions/05_Output/comptage_GO_exact_inferrés_aux_sPEPs.csv")
+
+# Filtrer les lignes contenant 'phosph' dans la colonne 'GO:BP'
+Count_exact_GO_terms_infered_to_sPEP <- Count_exact_GO_terms_infered_to_sPEP %>%
+  filter(str_detect(`GO:BP`, "phosph"))
+
+# Remplacer les valeurs manquantes dans Parent term par "NA"
+Count_exact_GO_terms_infered_to_sPEP <- Count_exact_GO_terms_infered_to_sPEP %>%
+  mutate(`Parent term` = if_else(is.na(`Parent term`), "NA", `Parent term`))
+
+# Calculer les pourcentages pour chaque GO:BP
+Count_exact_GO_terms_infered_to_sPEP <- Count_exact_GO_terms_infered_to_sPEP %>%
+  mutate(Percentage = (Number_of_sPEP / 1816) * 100)
+
+# Créer les graphiques à barres pour chaque GO:BP
+for (parent_term in unique(Count_exact_GO_terms_infered_to_sPEP$`Parent term`)) {
+  subset_data <- Count_exact_GO_terms_infered_to_sPEP %>%
+    filter(`Parent term` == parent_term)
+  
+  plot <- ggplot(subset_data, aes(x = reorder(`GO:BP`, Percentage), y = Percentage)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    geom_text(aes(label = Number_of_sPEP), position = position_dodge(width = 1), vjust = -0.5, size = 15) +
+    coord_flip() +
+    labs(title = paste('Protein phosphorylation'),
+         x = "GO:BP",
+         y = "Percentage of sPEP annotated with the function") +
+    theme(axis.text.x = element_text(hjust = 1, size = 40, vjust = 1, face = "bold"),
+          axis.text.y = element_text(size = 40, face = "bold"),
+          axis.title = element_text(size = 60),  # Ajuster la taille du titre des axes
+          legend.text = element_text(size = 60),
+          legend.title = element_text(size = 60),
+          plot.title = element_text(size = 60, face = "bold"),
+          plot.subtitle = element_text(size = 40, face = "bold"),
+          strip.text = element_text(size = 40)) +
+    scale_y_continuous(limits = c(0, 110), breaks = seq(0, 100, by = 10),
+                       labels = function(x) ifelse(x == 100, "100", as.character(x)))
+  
+  print(plot)  # Imprimer chaque graphique
+}
+
+```

@@ -1,0 +1,227 @@
+---
+title: "01_protéome_interactome_complet_monocytes"
+author: SLIVAK Mathilde
+date: 16/01/2024
+output:
+  rmarkdown::html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: cerulean
+
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(openxlsx)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+```
+
+# Analyse de la comparaison entre le protéome/interactome des SEPs dans les monocytes et le protéome/interactome complet des monocytes
+## Etude des meilleurs domaines Pfam qui réalisent des interaction 
+Cette analyse a pour objectif de comparer les occurences des domaines les plus récurents dans l'analyse des SEPs de monocytes (cf thèse Sébastien Choteau) afin de voir si certains domaines sont significativement plus exprimés dans le SEPs que dans le reste des protéines des monocytes. 
+
+
+```{r, echo=FALSE, warning=FALSE}
+# Charger le dataframe existant
+data <- data.frame(
+  Identifiant.PF = c("PF00038", "PF00048", "PF00112", "PF01231", "PF04699", 
+                     "PF09286", "PF00113", "PF12146", "PF00129", "PF00262", 
+                     "PF00340", "PF02841", "PF04045", "PF07654"),
+  Domain.name = c("Intermediate filament protein", "Small cytokines (intercrine/chemokine), IL-8 like", 
+                  "Papain family cysteine protease", "Indoleamine 2,3-dioxygenase", 
+                  "ARP2/3 complex, 16kDa subunit (p16-Arc)", "Pro-kumamolisin, activation domain", 
+                  "Enolase, C-terminal TIM barrel domain", "Serine aminopeptidase, S33", 
+                  "Class I Histocompatibility antigen, domains alpha 1 and 2", 
+                  "Calreticulin family", "Interleukin-1/18", "Guanylate-binding protein, C-terminal domain", 
+                  "ARP2/3 complex, 34 kDA subunit (p34-ARC)", "Immunoglobulin C1-set domain"),
+  Function.family = c("Cytoskeleton", "Immunology", "AA degradation", "AA degradation", 
+                      "Actin", "Peptide clevage", "Glycolysis", "AA degradation", 
+                      "Ca2+ regulation", "Immunology", "Immunology", "Immunology", 
+                      "Actin", "Immunology"),
+  Occurrence.in.SEP = c(15, 14, 13, 10, 9, 9, 8, 8, 7, 7, 7, 7, 7, 7),
+  Monocyte.total.proteome = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+  sPEP.interactions.with.proteome = c(285, 2100, 4797, 20, 1458, 45, 56, 208, 1253, 91, 2303, 91, 133, 5859),
+  Monocyte.total.interactome = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)
+)
+
+# Charger le tableau Excel 'proteome_monocytes_domains'
+proteome_data <- read.xlsx("/home/slivak/Bureau/Interactome_sORF_monocytes/01_SEP_contre_protéome_interactome_complet_monocytes/05_Output/proteome_monocytes_domains_interacting.xlsx")
+
+# Charger le tableau Excel 'interactome_monocytes_domains'
+interactome_data <- read.xlsx("/home/slivak/Bureau/Interactome_sORF_monocytes/01_SEP_contre_protéome_interactome_complet_monocytes/05_Output/interactome_monocytes_domains_interacting.xlsx")
+
+# Fusionner les deux ensembles de données sur la colonne "Identifiant.PF"
+result <- left_join(data, proteome_data, by = "Identifiant.PF")
+
+# Remplacer les NA dans Monocyte.total.proteome par les valeurs correspondantes de proteome_data
+result$Monocyte.total.proteome <- coalesce(result$Monocyte.total.proteome, result$Nombre._de_proteines_communes)
+
+# Fusionner avec interactome_data et remplacer les NA dans Monocyte.total.interactome
+result <- left_join(result, interactome_data, by = "Identifiant.PF")
+result$Monocyte.total.interactome <- coalesce(result$Monocyte.total.interactome, interactome_data$Nombre._de_proteines_communes)
+
+
+# Colorer la colonne "Identifiant.PF" en fonction de la différence
+result$Identifiant.PF <- ifelse(result$Occurrence.in.SEP - result$Monocyte.total.proteome > 0,
+                                sprintf('<span style="color: red !important;">%s</span>', result$Identifiant.PF),
+                                result$Identifiant.PF)
+
+# Sélectionner les colonnes nécessaires
+result <- select(result, Identifiant.PF, Domain.name, Function.family, Occurrence.in.SEP, Monocyte.total.proteome, sPEP.interactions.with.proteome, Monocyte.total.interactome)
+
+# Afficher le résultat avec kable pour un formatage agréable
+kable(result, format = "markdown", escape = FALSE, caption = "__TOP 10 des domaines Pfam observés chez les SEPs basé sur leur nombre d'occurence et comparaison avec le protéome complet des monocytes__") %>%
+  kable_styling("striped")
+
+```
+_Cette table permet d'observer quels sont les domaines les plus observés dans les SEPs, leurs fonctions, leur nombre d'intéraction, mais également si les domaines sont rares ou communs dans le protéome et l'intéractome des monocytes. Les identifiants en rouge présentent un nombre de domaine observé dans les SEPs supérieur au nombre de domaines observés dans le protéome complet._
+
+## Domaines les plus récurents dans les SEPs
+
+### PF00038
+Ce domaine est présent dans les __filaments intermédiaires__, qui sont des composants primordiaux du cytosquelette et de l'enveloppe nucléaire. Ils forment généralement des structures filamentaires d'une largeur de 8 à 14 nm. Ces domaines sont présents dans les cellules des vertébrés et de nombreux invertébrés. Des homologues de la protéine IF ont été observés chez un invertébré, le céphalochordé Branchiostoma.
+
+### PF00048
+Ce domaine est caractéristique des __chimiokines de type IL8-like__. Les chimiokines, ou cytokines chimiotactiques, sont une famille de petites cytokines ou de protéines de signalisation sécrétées par les cellules qui induisent le mouvement directionnel des leucocytes, ainsi que d'autres types de cellules, y compris les cellules endothéliales et épithéliales. En plus de jouer un rôle majeur dans l'activation des réponses immunitaires de l'hôte, les chimiokines sont importantes pour les processus biologiques, y compris la morphogenèse et la cicatrisation des plaies, ainsi que dans la pathogenèse de maladies telles que les cancers.
+### PF00112
+Ce domaine est présent chez les protéines __papain-like cysteine protease__. Classées dans la "famille des peptidases C1", ce sont les cysteine proteases les plus prédominantes. Ces protéases sont présentes dans les virus, les plantes, les parasites primitifs, les invertébrés et les vertébrés. Chez les mammifères, elles sont également connues sous le nom de cathepsines.
+Le rôle principal de ces protéines est l'hydrolyse des protéines avec une large spécificité pour les liaisons peptidiques, mais une préférence pour un acide aminé portant une grande chaîne latérale hydrophobe en position P2.
+
+### PF01231
+Ce domaine est caractéristique de la protéine __Indoleamine 2,3-dioxygénase (IDO)__. C'est une protéine hémique cytosolique qui, avec l'enzyme hépatique tryptophane 2,3-dioxygénase, catalyse la conversion du tryptophane et d'autres dérivés indoliques en kynurénines. Elle est largement distribuée dans les tissus humains et participe à la tolérance immunitaire périphérique, contribuant à maintenir l'homéostasie en prévenant l'auto-immunité ou l'immunopathologie qui résulterait de réponses immunitaires incontrôlées et excessives.
+L'action dégradante de l'IDO sur le tryptophane entraîne la mort cellulaire par privation de cet acide aminé essentiel et relativement rare. Le manque de tryptophane inhibe la division des lymphocytes T et l'accumulation de catabolites du tryptophane induit l'apoptose des lymphocytes T et la différenciation des lymphocytes T régulateurs. L'IDO agit également comme un suppresseur de l'immunité antitumorale et limite la croissance des pathogènes intracellulaires en les privant de tryptophane.
+
+### PF04699
+Ce domaine est retrouvé dans le complexe protéique __Arp2/3__, qui est impliqué dans le contrôle de la polymérisation d'actine. Le complexe Arp2/3 génère des réseaux d'actine ramifiés lorsqu'il est activé par des facteurs favorisant la nucléation (Nucleation Promoting Factors, NPFs). Ce complexe est impliqué dans la réponse immunitaire comme le montrent trois analyses récentes (Brigida et al., 2018 ; Randzavola et al., 2019 ; Volpi et al., 2019), qui mettent en avant que l'absence d'une partie du complexe dans les cellules immunitaires est liée à des infections sévères, des réactions auto-immunes, un faible nombre de lymphocytes (particulièrement les cellules T naïves), et une migration et prolifération altérées des cellules T après la stimulation du TCR.
+
+### PF09286
+Ce domaine correspond au domaine d'activation des __Pro-kumamolisin__, qui est un propeptide présent dans les protéases (comme la trypsine, M28, les pyrolisines), qui, lorsqu'il est clivé, rend l'enzyme active.
+
+### PF00113
+Ce domaine est présent dans l'enzyme __Enolase__ et permet la catalyse de la déshydratation réversible du 2-phospho-D-glycérate en phosphoénolpyruvate dans le cadre des voies métaboliques de la glycolyse et de la gluconéogenèse.
+
+### PF12146
+Ce domaine est caractéristique de la __sérine aminopeptidase__ et est retrouvé chez les bactéries et les eucaryotes. Elle permet le clivage entre deux acides aminés, libérant l'acide aminé N-terminal. Ce domaine est trouvé en association avec PF00561. Je trouve surtout des infos sur les bactéries ?
+
+### PF00129
+Ce domaine est retrouvé dans les __glycoprotéines__ qui composent le __CMH (complexe majeur d'histocompatibilité) de classe I__. Ces protéines sont exprimées à la surface des cellules et permettent de présenter des peptides antigéniques synthétisés dans le cytoplasme de la cellule. Ces peptides peuvent être des peptides du soi ou des peptides étrangers (comme des protéines virales). Ce domaine particulier est associé à la région de reconnaissance car c'est la région où se lie l'antigène pour être présenté aux autres cellules, induisant ou non la réponse cytotoxique des cellules T.
+
+### PF00262
+Ce domaine est présent chez les protéines de la famille des __Calreticulines__, qui sont une famille de chaperonnes du réticulum endoplasmique capables de lier le calcium. La calréticuline est présente dans la plupart des tissus et située en périphérie des membranes du réticulum endoplasmique et du réticulum sarcoplasmique. Elle joue un rôle dans le stockage du calcium dans la lumière des réticulums et semblerait avoir d'autres fonctions importantes pas totalement caractérisées.
+
+### PF00340
+Ce domaine est caractéristique de la famille des __interleukines 1 et 18__. Ces cytokines sont impliquées dans les processus inflammatoires suite à l'activation du système immunitaire. Il semble que ces protéines partagent des fonctions communes lors de la mise en place d'une réaction immunitaire, tout en possédant des voies de sécrétion et d'activation différentes (V. Tapia et Al, 2019).
+
+### PF02841
+Ce domaine est présent au niveau de la partie C-terminale des protéines liant le __guanylate (GBP, Guanylate-binding proteins)__, qui sont des __GTPases__. La transcription de cette protéine antivirale est induite par l'interféron gamma lors de l'activation des macrophages. Le rôle de ces protéines est de cibler et liser la membrane de la vacuole contenant le pathogène, détruisant ainsi la niche résidentielle des pathogènes protozoaires et bactériens vacuolaires. Elles empêchent également l'infection par les virions en ciblant les complexes de réplication des virus à ARN.
+
+### PF04045
+Ce domaine est également un domaine caractéristique du complexe protéine __Arp2/3__, qui est impliqué dans le contrôle de la polymérisation d'actine. Le complexe Arp2/3 génère des réseaux d'actine ramifiés lorsqu'il est activé par des facteurs favorisant la nucléation (Nucleation Promoting Factors, NPFs). Ce complexe est impliqué dans la réponse immunitaire comme le montrent trois analyses récentes (Brigida et al., 2018 ; Randzavola et al., 2019 ; Volpi et al., 2019), qui mettent en avant que l'absence d'une partie du complexe dans les cellules immunitaires est liée à des infections sévères, des réactions auto-immunes, un faible nombre de lymphocytes (particulièrement les cellules T naïves), et une migration et prolifération altérées des cellules T après la stimulation du TCR.
+
+### PF07654
+Ces domaines, appelés C1, sont des domaines __'immunoglobulin-like__' classiques et sont très similaires aux domaines constants des anticorps. Les domaines C1 se trouvent presque exclusivement dans les molécules impliquées dans le système immunitaire (chaînes lourdes et légères des Ig, molécules du CMH de classe I et II, récepteurs des cellules T...).
+
+## Etude des meilleurs domaines Pfam qui ne réalisent pas des interactions 
+
+```{r, echo=FALSE, warning=FALSE}
+# Charger le dataframe existant
+data <- data.frame(
+  Identifiant.PF = c("PF00335", "PF05038", "PF03821", "PF09307", "PF02394", 
+                     "PF03227", "PF05283", "PF03836", "PF02535", "PF07946", 
+                     "PF10601", "PF11029"),
+  Domain.name = c("Tetraspanin family", "Cytochrome b558 alpha-subunit", 
+                  "Golgi 4-transmembrane spanning transporter", "CLIP, MHC2 interacting", 
+                  "Interleukine-1 propeptide", "Gamma interferon inducible lysosomal thiol reductase (GILT)", 
+                  "Multi-glycosylated core protein 24 (MGC-24), sialomucin", "SRasGAP C-terminus", 
+                  "ZIP Zinc transporter",
+                  "PAT complex subunit CCDC47", "LITAF-like zinc ribbon domain", "GDAZ associated protein 2"),
+  Function.family = c("Membrane proteins", "Oxidative phosphorylation (phagocytes)", "Transport", "Immunology (MCH-II)", 
+                      "Immunology (cytokines)", "Immunology (scavenger receptors)", "Immunology (cytokines)", "Cytoskeleton", 
+                      "Transport", "ER biology", "Immunology (pathogen sensing)", "-"),
+  Occurrence.in.SEP = c(15, 8, 7, 5, 4, 4, 4, 3, 2, 2, 2, 2),
+  Monocyte.total.proteome = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+  sPEP.interactions.with.proteome = c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+  Monocyte.total.interactome = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA)
+)
+
+# Charger le tableau Excel 'proteome_monocytes_domains'
+proteome_data <- read.xlsx("/home/slivak/Bureau/Interactome_sORF_monocytes/01_SEP_contre_protéome_interactome_complet_monocytes/05_Output/proteome_monocytes_domains_non_interacting.xlsx")
+
+# Charger le tableau Excel 'interactome_monocytes_domains'
+interactome_data <- read.xlsx("/home/slivak/Bureau/Interactome_sORF_monocytes/01_SEP_contre_protéome_interactome_complet_monocytes/05_Output/interactome_monocytes_domains_non_interacting.xlsx")
+
+# Fusionner les deux ensembles de données sur la colonne "Identifiant.PF"
+result <- left_join(data, proteome_data, by = "Identifiant.PF")
+
+# Remplacer les NA dans Monocyte.total.proteome par les valeurs correspondantes de proteome_data
+result$Monocyte.total.proteome <- coalesce(result$Monocyte.total.proteome, result$Nombre._de_proteines_communes)
+
+# Fusionner avec interactome_data et remplacer les NA dans Monocyte.total.interactome
+result <- left_join(result, interactome_data, by = "Identifiant.PF")
+result$Monocyte.total.interactome <- coalesce(result$Monocyte.total.interactome, interactome_data$Nombre._de_proteines_communes)
+
+
+# Colorer la colonne "Identifiant.PF" en fonction de la différence
+result$Identifiant.PF <- ifelse(result$Occurrence.in.SEP - result$Monocyte.total.proteome > 0,
+                                sprintf('<span style="color: red !important;">%s</span>', result$Identifiant.PF),
+                                result$Identifiant.PF)
+
+# Sélectionner les colonnes nécessaires
+result <- select(result, Identifiant.PF, Domain.name, Function.family, Occurrence.in.SEP, Monocyte.total.proteome, sPEP.interactions.with.proteome, Monocyte.total.interactome)
+
+# Afficher le résultat avec kable pour un formatage agréable
+kable(result, format = "markdown", escape = FALSE, caption = "__TOP 10 des domaines Pfam observés chez les SEPs basé sur leur nombre d'occurence et comparaison avec le protéome complet des monocytes__") %>%
+  kable_styling("striped")
+
+```
+_Cette table permet d'observer quels sont les domaines les plus observés dans les SEPs, leurs fonctions, leur nombre d'intéraction, mais également si les domaines sont rares ou communs dans le protéome et l'intéractome des monocytes. Les identifiants en rouge présentent un nombre de domaine observé dans les SEPs supérieur au nombre de domaines observés dans le protéome complet._
+
+## Domaines les plus récurents dans les SEPs
+
+### PF00335
+Ce domaine est caractéristique de la famille protéique des __Tetraspanins__ qui sont des protéines retrouvées chez tous les eucaryotes, dont le rôle fondamental semble être l'organisation d'autres protéines en un réseau de microdomaines membranaires multimoléculaires, parfois appelé "réseau de tétraspanines". Ce domaine ne fait pas d'interaction dans les smORFs, ce qui pose des questions sur pourquoi le domaine est si fortement exprimé dans ces peptides
+
+### PF05038
+Ce domaine compose la chaîne légère des __cytochromes__, qui a un rôle fondamental dans le transfert d'électron via la NADPH oxidase dans les phagocytes. La présence de ce domaine permet de tuer les microorganismes lors d'une infection bactérienne ou fongique (M José Stasia, 2016)
+
+### PF03821
+Ce domaine est principalement retrouvé dans les __Golgi 4-transmembrane spanning transporter__, qui sont des protéines transmemebranaires associées aux lysosomes. La fonction de ce domaine n'a pas encore été déterminée, cependant, des études sur l'homologue de la souris suggèrent un rôle dans le transport de petites molécules à travers les membranes endosomales et lysosomales.
+
+### PF09307
+Ce domaine est retrouvé dans les peptides __CLIP (class II invariant chain associated peptide)__ associés à la chaîne invariable des CMH de classe II. Ces domaines sont nécessaires à l'association de ces peptides avec le CMH de classe II lors de l'assemblage des récepteurs CMH II.
+
+### PF02394
+Ce domaine est caractéristique des propeptides issus de la traduction du précurseur des __interleukines-1__. Ces propeptides d'environ 115 aa à l'extrémité N sont clivés pour libérer les IL1 actives.
+
+### PF03227
+Ce domaine est retrouvé dans la famille des __Gamma interferon inducible lysosomal thiol reductase (GILT)__ exprimée de manière constitutive dans les cellules présentatrices d'antigènes, qui catalyse la réduction des liaisons disulfure à la fois in vitro et in vivo et dont l'activité est optimale à un pH acide. La GILT est synthétisée sous la forme d'un précurseur de 35 kDa et, après avoir été acheminée vers les compartiments contenant le complexe majeur d'histocompatibilité (CMH) de classe II (MIIC), elle est transformée en une forme mature de 30 kDa par clivage des propeptides N- et C-terminaux. La génération d'épitopes du CMH de classe II nécessite à la fois la dénaturation de la protéine et la réduction des liaisons disulfures intra- et inter-chaînes avant la protéolyse. La GILT peut jouer un rôle important dans la réduction des liaisons disulfures des protéines délivrées aux CIMI et, par conséquent, dans le traitement des antigènes.
+
+### PF05283
+Ce domaine est présent chez la famille des __Multi-glycosylated core protein 24__. Cette famille comprend plusieurs protéines MGC-24 (ou antigène Cd164) provenant d'organismes eucaryotes. MGC-24/CD164 est une sialomucine exprimée dans de nombreux tissus normaux et cancéreux. Un article (A.Zannettino, 1998) suggère que CD164 représente une puissante molécule de signalisation ayant la capacité de supprimer la prolifération des cellules hématopoïétiques.
+
+### PF03836
+Ce domaine est retrouvé à __l'extrémité C (nommée RasGAP C-terminus) de la famille des IQGAP__, dont __IQGAP1/2/3__ chez l'humain. La protéine humaine IQGAP1 est une protéine d'échafaudage qui peut assembler des complexes multiprotéiques impliqués dans l'interaction cellule-cellule, l'adhérence cellulaire et le mouvement via la réorganisation du cytosquelette à base d'actine/tubuline. IQGAP1 est également un régulateur des voies de signalisation MAPK et Wnt/bêta-caténine.
+
+### PF02535
+Ce domaine est caractéristique des __transporteurs de zinc appelés ZIP__. La principale contribution à cette famille est celle de la famille des protéines ZIP d'Arabidopsis thaliana. Ces protéines sont responsables de l'absorption du zinc dans la plante. On trouve également dans cette famille des protéines de C. elegans dont la fonction est inconnue et qui sont annotées comme étant similaires au produit du gène inductible de l'arrêt de croissance humain, bien que cette protéine ne soit pas présente dans cette famille.
+
+### PF0794
+Ce domaine est retrouvé dans la famille de protéines __CCDC47__ qui participent à la composition du __complexe PAT__ présent la membrane du réticulum endoplasmique. Ce complexe à pour fonction de faciliter le passage de l'insertion de complexes protéiques dans la membrane. Ce domaine est essentiel car il permet également la biogénèse optimale des protéines membranaires en assurant la bonne organisation tri-dimensionnelle des protéines (dégrade les complexes s'ils n'ont pas la bonne conformation)
+
+### PF10601
+Ce domaine est caractéristique des __LITAF-like zinc ribbon domain__, une famille protéique qui présente une structure conservée des rubans de zinc. Bien qu'il appartienne à l'un des groupes de plis du doigt de zinc (ruban de zinc), ce domaine particulier a été identifié pour la première fois dans le facteur de nécrose tumorale alpha induite par le LPS (LITAF), qui est produit dans les cellules de mammifères après avoir été exposé au lipopolysaccharide (LPS).
+
+### PF11029
+Ce domaine est présent dans la famille des protéines __DAZ associated protein 2__. Ce domaine possède une séquence hautement conservée au cours de l'évolution, y compris une région polyproline conservée et plusieurs sites de liaison SH2/SH3. Il se présente sous la forme d'un gène à copie unique avec une organisation à quatre exons et est situé sur le chromosome 12. Il code pour une protéine exprimée de façon ubiquitaire et se lie à DAZ et DAZL1 par l'intermédiaire des répétitions DAZ.
+
+## Conclusion 
+Les mêmes fonctions (immunologie, métabolisme, cytosquelette) sont retrouvées chez les domaines participant ou non aux intéractions. Il serait intéréssant de vérifier si ces fonctions sont également majoritaires dans les autres domaines étudiés, même si'ils sont retrouvés en moins grand nombre, afin de vérifier si ces fonctions sont globalement plus associées aux sORFs des monocytes ou si il y a un lien particulier avec les nombre de domaines retrouvés. 
+
+Il est interessant de remarquer que certains domaines, notammenent la Pro-kumamolisin et la sérine aminopeptidase sont caractéristiques des bactéries et pas des eucaryotes. 
+
+Il est également interessant de noter que certains domaines ne participant pas aux intéractions sont portant caractérisés dans la littérature comme très important dans l'organisation de réseaux protéiques. Il est possible que les sORFs possédant ce domaines ne soient pas exprimés, d'où l'abscence d'intéraction, mais il est tout de même étonnant de les retrouver en si grand nombre dans les smORF si leur rôle n'est pas accompli. 
+

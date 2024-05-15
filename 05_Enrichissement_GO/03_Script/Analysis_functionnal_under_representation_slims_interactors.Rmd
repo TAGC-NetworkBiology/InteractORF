@@ -1,0 +1,85 @@
+---
+title: Analyse sous représentation fonctionnelle des Protéines interagissant avec les slims
+  des sORFs
+author: "Slivak Mathilde"
+date: "2024-02-12"
+output:
+  rmarkdown::html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: cerulean
+---
+
+## Sous représentation fonctionnelle des protéines interagissant avec les slims des sORFs (contre l'interactome entier des monocytes)
+
+L'objectif de cette analyse est d'étudier la sous représentation fonctionnelle des protéines interagissant avec les domaines des sORFs. Pour ce faire, nous avons réalisé un test de sous représentation en termes GO via g:profiler, en comparant les termes GO associés aux interacteurs (domaine-motif) des sORFs à l'ensemble de l'interactome des monocytes.
+
+Cette analyse vise à répondre à la question biologique suivante : __Y a-t-il une fonction sous représentée parmi les interacteurs des sORFs contenant des motifs au sein des monocytes?__
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(DT)
+library(ggplot2)
+library(GSEABase)
+library(tidyverse)
+library(devtools)
+```
+
+
+Le backgrownd de cette anlayse est l'interactome complet des monocytes. 
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+
+
+data <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/01_Reference/gProfiler_results/gProfiler_hsapiens_27-02-2024 14-46-45__intersections.csv", header = TRUE)
+
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 30,  # Nombre d'entrées par page
+  autoWidth = TRUE)  # Ajustement automatique de la largeur des colonnes
+
+
+```
+
+```{r, out.width="130%", echo=FALSE}
+# Ajouter un titre au tableau et afficher le tableau avec le style personnalisé
+datatable(data, options = style, caption = "Résultat de l'enrichissement fonctionnel ")
+```
+
+Lorsque nous analysons la liste des protéines interagissant avec les SLiMs des sORFs, il n'y a qu'un terme KEGG significativement sous représentés. Ce terme est associés aux Metabolic pathways. 
+
+Il n'y a pas de sous représentation significative en termes GO, GO slims, WP et HP.
+
+
+## Sous représentation fonctionnelle des protéines interagissant avec les motifs des sORFs (contre l'ensemble des protines intéragissant avec les sORFs)
+L'objectif de cette analyse est d'étudier la sous représentation fonctionnelle des protéines interagissant via des interactions domaine-motif avec les sORFs. Pour ce faire, nous avons réalisé un test de sous représentation en termes GO via g:profiler, en comparant les termes GO associés aux interacteurs liés aux motifs des sORFs à l'ensemble des interacteurs des sORFs (interagissant soit avec les domaines des sORFs soit avec les slim des sORFs).
+
+Cette analyse vise à répondre à la question biologique suivante :
+__Y a-t-il une fonction sous représentée parmi les protéines qui interagissent spécifiquement avec les motifs des sORFs parmi tous les interacteurs des sORFs?__
+
+
+Le backgrownd de cette anlayse est l'ensemble des intéracteurs des sORFs. 
+```{r, include = FALSE, warning=FALSE, echo=FALSE}
+
+
+data <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/05_Enrichissement_GO/01_Reference/gProfiler_results/gProfiler_hsapiens_27-02-2024 14-44-33__intersections.csv", header = TRUE)
+
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 30,  # Nombre d'entrées par page
+  autoWidth = TRUE)  # Ajustement automatique de la largeur des colonnes
+
+
+```
+
+```{r, out.width="130%", echo=FALSE}
+# Ajouter un titre au tableau et afficher le tableau avec le style personnalisé
+datatable(data, options = style, caption = "Résultat de l'enrichissement fonctionnel ")
+```
+
+

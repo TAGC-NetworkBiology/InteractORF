@@ -1,0 +1,114 @@
+---
+title: "Analyse_localisation_orf _sur_transcripts"
+author: "Slivak Mathilde"
+date: "2024-01-22"
+output:
+  rmarkdown::html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(DT)
+```
+
+# Analyse de la localisation des ORFs contenant des domaines Pfam plus nombreux dans ces ORfs que dans le protéome total des monocytes
+## Etude des ORFs contenant des domaines PFAMs qui sont impliqués dans une intéraction 
+Cette étude à pour objectif d'étudier la localisation des ORFS dont les domaines sont les plus représentés (01_SEP_contre_protéome_interactome_complet_monocytes), ie plus nombreux parmis les sORF que dans le protéome total de monocyte. On étudie ici sur quel transcript sont situés ces ORFs et quelles sont les annotations des ORFs et des transcripts. Nous étudions également les domaines portés simultanemment ou non par les sORFs et leur protéine canonique et s'il y a des intéractions prédites entre les ORFs et ces domaines
+
+
+```{r, echo=FALSE, warning=FALSE}
+# Charger les packages nécessaires
+library(readxl)
+library(DT)
+
+# Charger le fichier Excel
+chemin_fichier <- "Domaines_interacting_transcripts_caractéristiques.xlsx"
+donnees <- readxl::read_excel(chemin_fichier, col_names = TRUE)
+
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 10,  # Nombre d'entrées par page
+  autoWidth = TRUE,  # Ajustement automatique de la largeur des colonnes
+  columnDefs = list(
+    list(targets = "_all", className = "dt-center")  # Centrer le contenu de toutes les colonnes
+  )
+)
+
+# Ajouter un titre au tableau et afficher le tableau avec le style personnalisé
+datatable(donnees, options = style, caption = "Tableau récapitulatif des transcrpits où sont situés les ORFs dont le domaine est impliqué dans des intéractions")
+
+```
+
+
+L'étude des coordonnées génomiques des différents ORFs à permis de mettre en évidence que le comptage des domaine était biaisé. En effet, pour les ORFs partageant le même domaine, il s'agit en réalité de peptides isoformes dont les coordonnées génomiques ne changent que de quelques acides aminés. Il y a donc un seul domaine sur le transcrpit, et de nombreux sORF dont le codon start est décalé mais celà ne modifie pas la quantité de domaine. Il est donc important de reprendre l'ensemble des analyses précédentes en ayant clusterisé les différents ORFs (cf Interactome_sORF_monocytes/03_clustering_ORF_monocytes).
+
+
+
+### PF01231
+Les 9 ORFs possédant ce domaine (Intermediate filament protein) sont situés sur deux transcripts différents, mais présents sur le même gène IDO1. Les ORFs sont soit introniques soit downstream, mais les transcrits concernés ne sont pas catégorisés comme protéine coding (retained introns et nonsense mediated decay), même si, pour les smORF, il est possible que même catégorisés comme introniques, ils soient en réalité traduits et transcrits. Il n'y a pas d'interactions prédites entre les ORFs qui possèdent ce domaine et la protéine prédite 'Indoleamine 2,3-dioxygenase 1'. 
+
+
+### PF04699
+Les 9 ORFs possédant ce domaine (Small cytokines (intercrine/chemokine), IL-8 like) sont également situés sur deux transcripts différents qui appartiennent au même gène ARPC5. Ce gène est associé à la prolifération cellulaire, la migration et l'infiltration immunitaire des gliomes (tumeurs cérébrales les plus fréquentes chez l'enfant et l'adolescent) (A M Gown, A M Vogel, 1982). L'un de ces deux transcrits est catégorisé comme 'processed', mais le CDS n'est pas défini. Ce domaine est retrouvé à la fois chez les ORFs et la protéine canonique de ce gène.
+
+### PF09286
+Les 9 ORFs possédant ce domaine (Pro-kumamolisin) sont présents sur trois transcripts différents, tous associés au gène TPP1, et dont deux d'entre eux codent pour des protéines isoformes (O14773-2 et E9PME9) codant toutes deux pour la Tripeptidyl-peptidase 1. Il est intéressant de remarquer que la pro-kumamolisin est l'homologue bactérien de l’enzyme Tripeptidyl peptidase 1 (Aritra Pal, 2009). Ce domaine est le seul ici à ne pas être retrouvé dans la protéine de référence, et il n'y a pas d'interaction prédite entre les ORFs et la protéine de référence. Il serait intéressant d'aller analyser la position exacte des ORFs annotés comme sORF sans plus de précision. Ici, il y a plusieurs transcripts retrouvés sur métamorph pour le même sORF, mais un seul dans les monocytes.
+
+### PF00113
+Les 8 ORFs possédant ce domaine (Enolase, C-terminal TIM barrel domain) sont présents sur un unique transcript caractérisé comme intron conservé après l'épissage. Il est donc possible que cet ORF soit codant même si ce n'est pas le cas d'après les bases de données basées sur les grands CDS. Le transcript est présent sur le gène EN01, et l'expression de la protéine canonique à la surface des cellules est impliquée dans l'augmentation de la vitesse lors de la réponse immunitaire (Seyeon Bae, 2012). Ce domaine est commun avec l'un des deux domaines porté parla protéine canonique codée par le gène ENO1, et aucune interaction n'est prédite entre les ORFs et la protéine canonique.
+
+### PF12146
+Les 8 ORFs possédant ce domaine (Serine aminopeptidase, S33) sont présents sur le même transcript, dans le gène MGLL, qui est impliqué dans le métabolisme des triglycérides et régule la quantité d'acide gras utilisés comme molécules de signalisation en améliorant la migration des cellules cancéreuses, ainsi que l'invasion et la croissance des tumeurs (Liu CZ, 2023). Ce transcript est catégorisé comme codant pour une protéine mais le CDS n'est pas défini. Le domaine est retrouvé sur la protéine canonique du gène, et il n'y a pas d'interaction prédite entre les ORFs et cette protéine.
+
+### PF00262
+Les 7 ORFs possédant ce domaine (Calreticulin family) sont présents sur deux transcripts différents, et l'un d'entre eux code pour la Calnexin, une protéine chaperone du Reticulum endoplasmique responsable du contrôle qualité des glycoprotéines. Les transcripts sont tous deux sur le gène CANX, le domaine est également retrouvé dans la protéine canonique, mais aucune interaction n'est prédite entre les ORFs et cette protéine. Les transcripts sont catégorisés comme nonsense mediated decay ou intronique, donc non codant selon les bases de données.
+
+### PF04045
+Les 7 ORFs possédant ce domaine (ARP2/3 complex, 34 kDA subunit (p34-ARC)) sont présents sur deux transcripts du même gène (ARPC) et sont tous les deux considérés comme codant pour une protéine avec un CDS non défini. La protéine canonique du gène ARPC2 possède le même domaine et aucune interaction n'est prédite entre les ORFs et cette protéine.
+
+
+## Etude des ORFs contenant dans les domaines PFAMs qui ne sont pas impliqués dans une intéraction 
+
+```{r, echo=FALSE, warning=FALSE}
+# Charger les packages nécessaires
+library(readxl)
+library(DT)
+
+# Charger le fichier Excel
+chemin_fichier <- "Domaines_non_interacting_transcripts_caractéristiques.xlsx"
+donnees <- readxl::read_excel(chemin_fichier, col_names = TRUE)
+
+
+
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 10,  # Nombre d'entrées par page
+  autoWidth = TRUE,  # Ajustement automatique de la largeur des colonnes
+  columnDefs = list(
+    list(targets = "_all", className = "dt-center")  # Centrer le contenu de toutes les colonnes
+  )
+)
+
+# Ajouter un titre au tableau et afficher le tableau avec le style personnalisé
+datatable(donnees, options = style, caption = "Tableau récapitulatif des transcrpits où sont situés les ORFs dont le domaine est impliqué dans des intéractions")
+
+```
+
+## Conclusion
+
+Même s'il n'y a pas de différences marquantes entre les ORFs présents sur des domaines impliqués ou non dans des interactions, certains points intéressants ressortent de cette analyse.
+
+Que ce soit pour les domaines impliqués dans une interaction ou non, les ORFs partageant les mêmes domaines sont toujours retrouvés dans les mêmes gènes, mais pas forcément dans les mêmes transcrits.
+
+Dans les domaines impliqués dans une (ou plusieurs) interaction(s), le seul qui n'est pas retrouvé dans la protéine canonique est celui de la Pro-kumamolisin, et qui plus est, cette protéine est l'homologue bactérien de la protéine canonique exprimée dans ce gène. Il serait donc intéressant de pousser l'analyse de ces ORFs. Au contraire, dans les ORFs avec les domaines les plus représentés qui ne participent pas à des interactions, nous retrouvons plus d'ORFs présentant des domaines absents dans la protéine canonique.
+
+De plus, nous ne retrouvons pas d'interactions prédites entre ces ORFs et les protéines canoniques. La prochaine étape est d'aller étudier la localisation des transcrits codant pour des protéines qui, elles, ont des interactions prédites avec ces ORFs. Nous allons également regarder s'il y a d'autres ORFs dans ces transcrits qui ne possèdent pas le domaine étudié ici.

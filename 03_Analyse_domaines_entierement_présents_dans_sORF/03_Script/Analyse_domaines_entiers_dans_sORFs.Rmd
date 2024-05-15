@@ -1,0 +1,111 @@
+---
+title: "Analyses des domaines entiers dans les sORFs"
+author: "Slivak Mathilde"
+date: "2024-02-14"
+output:
+  rmarkdown::html_document:
+    toc: yes
+    toc_float:
+      collapsed: true
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(DT)
+library(dplyr)
+library(tidyverse)
+```
+
+
+L'objectif de cette étude est d'analyser le nombre de sORFs de monocytes possédant des domaines entiers. En effet, parmi les __336 sORFs possédant des domaines, la plupart possèdent des domaines tronqués__. Cette observation est logique, étant donné que la taille des sORFs est souvent plus petite que la taille de la signature des domaines, mais c'est important car un domaine tronqué ne permet peut-être pas de réaliser les interactions prédites.
+
+Pour étudier quels domaines sont totalement présents dans les sORFs, nous avons comparé la taille de l'alignement de la séquence du sORF sur la signature du domaine avec la taille totale de la signature du domaine. Seul __1 sORF (ORF81463) possède un domaine entier__ (taille de l'alignement = taille de la signature). Nous avons ensuite fixé un seuil de 10 acides aminés, où le domaine est considéré comme entier dans le sORF si la différence entre la taille de l'alignement et la taille de la signature du domaine est inférieure à 10 aa (théoriquement 5 aa de chaque côté du domaine). Cela nous a permis de déterminer que seulement __15 domaines (sur les 104 initialement étudiés) sont entiers dans 26 sORFs__. Ces sORFs sont présentés dans la table 1.
+
+## Analyse des domaines entièrement présents dans les sORFs.
+
+```{r data, include = FALSE, warning=FALSE, echo=FALSE}
+data <-read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/03_Analyse_domaines_entierement_présents_dans_sORF/05_Output/domaines_entiers_dans_sORF_ajustement_5aa.csv", sep = ",", header = TRUE)
+# Personnaliser le style du tableau pour améliorer la lisibilité
+style <- list(
+  bStripeCol = 1,  # Alternance de couleurs sur les colonnes
+  stripeClasses = c('even', 'odd'),  # Classes CSS pour les zébrures de lignes
+  pageLength = 30,  # Nombre d'entrées par page
+  autoWidth = TRUE)  # Ajustement automatique de la largeur des colonnes
+```
+
+
+```{r table, echo=FALSE}
+datatable(data, options = style, caption = "Table1 : sORFs portant des domaines complet (+/- 10 acides aminés")
+```
+
+## Domaines entiers dans les sORFs
+#### PF00008 : EGF-like domain 
+Ce domaine, conservé au cours de l'évolution, est retrouvé dans un très grand nombre de protéines animales, le plus souvent dans la partie extracellulaire des protéines membranaires ou dans les protéines sécrétées. Ce domaine est retrouvé entier sur un seul sORF (ORF1429204 annoté ncRNA sORF), cet ORF est présent sur le transcript ENST00000559800 (processed_transcript), associé à la prostaglandin-endoperoxide synthase 2.
+
+#### PF00018 : SH3 domain
+Les domaines SH3 (Src homology 3) sont souvent révélateurs d'une protéine impliquée dans la transduction du signal lié à l'oganisation du cytosquelette. Ce domaine est entièrement retrouvé dans 1 sORF (ORF2168334 annoté ncRNA sORF), cet ORF est présent sur le transcript ENST00000472968 (retained intron) qui est associé au gène 'SRC proto-oncogene, non-receptor tyrosine kinase'. 
+
+#### PF00036 : EF hand
+Ce domaine est présent chez deux types de protéines : les protéines de signalisation et les protéines de transport. Ce domaine permet généralement la modulation de la fonction des protéines via la fixation de calcium. Ce domaine est retrouvé 2 fois sur le même ORF (ORF94040 annoté ncRNA sORF), présent sur le transcript ENST00000478109 (Protein coding CDS not defined) du gène S100A11 (S100 calcium binding protein A11).
+
+#### PF00048 : Small cytokines (intecrine/chemokine), interleukin-8 like
+Ce domaine est présent chez de nombreuses protéines de petite taille, la plupart impliquées dans des fonctions inflamatoires, chimiotactiques et mitogènes. Ce domaine est retrouvé chez 9 ORFs différents, ce qui en fait le domaine le plus représenté dans les sORFs étudiés. Parmis ces 9 ORFs, un seul d'entre eux (ORF1425126 annoté Overlapping sORF Upstream) est présent dans le transcript ENST00000401931 (protéin coding) associé au gène IL8. Les 8 autres ORFs (annotés ncRNA sORF) sont tous présents sur des transcripts Protein coding CDS not defined (ENST00000510390 et ENST00000502974, où les ORFs se supperposent) associés au gène CXCL3 (C-X-C motif chemokine ligand 3).
+
+#### PF00098 : Zinc knuckle 
+Ce domaine présente un motif de fixation du zinc, ces motifs sont majoritairement retrouvés chez les virus mais chez les eucaryotes ce domaine est associé à la régulation de l'expression des gènes. Ce domaine est entièrement présent dans 1 sORF (ORF62247, annoté Intronic sORF), présent sur le transcript ENST00000502372 (Retained intron) du gène CNBP (CCHC-type zinc finger nucleic acid binding protein)
+
+#### PF00178 : Ets-domain 
+Les domaines ETS (erythroblast transformation specific) sont présent dans les oncogènes ets. Ces oncogènes codent pour des facteurs de transcription, impliqués dans l'activation/l'inhibition de la transcription des gènes. Ce domaine est retrouvé entier sur deux sORFs (ORF634460 et ORF634458, tous deux annotés alternative downstream overlapping sORF) qui se supperposent dans le transcript ENST00000533030 (protein coding) associé au gène SPI1 (Spi-1 proto-oncogene). 
+
+#### PF01023 : S-100/ICaBP type calcium binding domain
+Ce domaine de liaison au calcium est une sous-famille du domaine EF hand, les protéines portant ce domaine sont associées à la modulation de la prolifération/différentiation des cellules neuronales et gliales, ainsi qu'à l'absorption calcique via la modulation de la diffusion intracellulaire. Ce domaine est entièrement présent dans 1 sORF (ORF272448 annoté ncRNA sORF) présent sur le trasncript ENST00000481009 (Protein coding CDS not defined) associé au gène s100A4 (S100 calcium binding protein A4).
+
+#### PF03951 : Glutamine synthetase, beta-Grasp domain
+Ce domaine représente le domaine N-terminal de la glutamine synthetase, qui participe à la liaison du substrat sur l'enzyme. Deux ORFs (ORF79254 et ORF79252 tous deux annotés ncRNA sORF) présentent ce domaine complet. Ils sont tous les deux chevauchant sur le même transcript ENST00000491322 (Processed transcript), qui est associé au gène GLUL (glutamate-ammonia ligase). 
+
+#### PF06623 : MHC_I C-terminus
+Cette famille représente le domaine cytoplasmique C-terminal des CMH de classe I. Deux sORFs (ORF76872 et ORF76875, annotés CDS sORFs) présentent ce domaine sans que celui ci soit tronqué. Ils se supperposent sur le même transcript ENST00000383329 (Protein coding) associés au gène HLA-C (major histocompatibility complex, class I, C). 
+
+#### PF07145 : Ataxin-2, C-terminal
+Ce domaine correspond à une région conservée au niveau du C-termius de la protéine Ataxin-2. Cette protéine est impliquée dans l'adressage de EGFR (epidermal growth factor receptor) ainsi que la régulation négative de l'internalisation dans la membrane de ce récepteur. Un sORF (ORF72769 annoté CDS sORF) présente ce domaine complet. Ce sORF est présent sur le transcript ENST00000511381 (Protein coding CDS not defined), qui est associé au gène PAIP2 (poly(A) binding protein interacting protein 2). 
+
+#### PF07654 : Immunoglobulin C1-set domain
+Le domaine C1 des immunoglobulines est un domaine ressemblant au domaine constant des anticorps, ce domaine est retrouvé dans les chaines lourdes et légères des immunoglobines, mais également dans le CMH et divers récepteurs des cellules T. Nous retrouvons 1 sORF (ORF230368, annoté intronic sORF) possédant ce domaine complet dans notre jeu de données. Cet ORF est présent sur le transcript ENST00000479107 (retained intron), associé au gène HLA-DPA1 (major histocompatibility complex, class II, DP alpha 1). 
+
+#### PF10215 : Ost4
+Ce domaine est une sous-unité du complexe oligosaccharyltransférase. Ce domaine est caractéristique d'une protéine membranaire qui assure le transfert en bloc d'un oligosaccharide à haute teneur en manose sur les résidus asparagine des polypeptides naissants lorsqu'ils pénètrent dans la lumière du réticulum endoplasmique rugueux. Un sORF (ORF45201 annoté CDS sORF) présente le domaine entier. Cet ORF est situé sur le transcript ENST00000429985 (protein coding), qui est associé au gène OST4 (oligosaccharyltransferase complex subunit 4, non-catalytic). 
+
+#### PF10584 : Proteasome subunit A N-terminal signature
+Ce domaine est conservé dans les sous-unités A des protéines du protéasome. Un sORF (ORF26919 annoté alternative sORF upstream) présente la signature quasi-complete pour ce domaine, cet ORF est présent dans le transcript ENST00000538610 (protein coding) qui est associé au gène PSMA5 (proteasome 20S subunit alpha 5). 
+
+#### PF11627 : Heterogeneous nuclear ribonucleoprotein A1, LC domain
+Cette famille de protéine est impliquée dans de nombreuses activitée liées aux ARNs. Plus spécifiquement, le domaine LC sert de médiateur dans les intéractions protéines-protéines et protéines-ARNs. Ce domaine possède également un rôle dans l'agrégations amyloïde, ce qui entraine des maladies neurodégénératives. Ce domaine est totalement présent dans un sORF (ORF81463 annoté downstream overlapping sORF), qui et localisé dans le transcript ENST00000618183 (protein coding). Ce transcript est le produit du gène HNRNPA2B1 (heterogeneous nuclear ribonucleoprotein A2/B1).
+
+#### PF12162 : STAT1 TAZ2 binding domain
+Ce domaine est le domaine C-terminal de STAT1, il se lie sélectivement au domaine TAZ2 de la protéine CRB, et devient ainsi un activateur transcriptionnel et peut initier la transcription de certains gènes. Ici aussi nous ne retrouvons qu'un seul sORF (ORF147415 annoté downstream sORF) qui possède entièrement ce domaine. Cet ORF est localisé sur le transcript ENST00000540176 (proteine coding), associé au gène STAT1 (signal transducer and activator of transcription 1).
+
+
+## Analyse des domaines après clusterisation
+
+Afin de résoudre le problème des sORFs chevauchant dans un même transcrit, nous avons choisi de regrouper nos sORFs en clusters. En effet, plusieurs sORFs chevauchants (comme c'est le cas pour les sORFs portant les domaines PF00048, PF00178 ou encore PF06623) peuvent être considérés comme des isoformes, ce qui risque de fausser le réseau s'ils sont comptés plusieurs fois.
+
+Pour cela, nous avons réalisé un clustering en utilisant un pourcentage d'identité de 95%. Les résultats de ce clustering sont disponibles dans le répertoire "04_Interactome_sORFs_clustering_95".
+
+Cette analyse nous a permis de considérer __17 (sur 26 au total) ORFs représentatifs réalisant des interactions domaine-domaine dans les monocytes__. Ces ORFs sont présentés dans la table 2 (2 ORF chevauchants n'ont pas été regroupés ensemble car ils ont un pourcentage d'identité < 95%).
+
+```{r data clusterisé, include = FALSE, warning=FALSE, echo=FALSE}
+# Charger les données
+data2 <- read.csv("/home/slivak/Bureau/Interactome_sORF_monocytes/04_Interactome_sORFs_clustering_95/05_Output/Clustering_95/dd_interactions_monocytes_cluster95.csv")
+
+# Sélectionner uniquement les cinq premières colonnes
+data_first_five <- data2[, 1:5]
+
+# Supprimer les lignes redondantes
+data_unique <- unique(data_first_five)
+row.names(data_unique) <- NULL
+```
+
+```{r table clusterisé, echo=FALSE}
+datatable(data_unique, options = style, caption = "Table1 : sORFs portant des domaines complet après clusterisation")
+```
