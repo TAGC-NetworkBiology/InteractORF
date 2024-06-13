@@ -1,13 +1,13 @@
 # InteractORF : predictions of human sORF functions from an interactome study
 
 ## Goal of the repository
-This GitHub repository contains the instructions and material to reproduce the analysis of the interactome form tissue-specific small peptides (sPEPs). This project is divided into small segments of analysis, with instructions on how to run each separated analysis. 
+This GitHub repository contains the instructions and material to reproduce the analysis of the interactome from tissue-specific small peptides (sPEPs). This project is divided into small segments of analysis, with instructions on how to run each step. 
 
-To reproduce the analysis, you have to first, prepare the environments (see "Environment requierement" section below), then execute the analysis step by step (see "Documentation" file in each sub-part of the respository).
+To reproduce the analysis, you have first to prepare the environments (see "Environment requirement" section below), then execute the analysis step by step (see "Documentation" file in each sub-part of the respository).
 
-## Environment requierement
-Tho run this analysis, python3 and R version 4.4.0 or more are requiered. 
-Third-party softwares such as specific libraries requiered to run the code are specified in the documentetion of each analysis.
+## Environment requirement
+To run this analysis, python3 and R version 4.4.0 or more, are required. 
+Third-party software such as specific libraries required to run the code are specified in the documentation of each analysis.
 
 A containerized environment will be available at a later date. 
 
