@@ -108,4 +108,4 @@ This respository have the folowing structure
 ```
 Each analysis is independent from another, but we strongly encourage to run them all in the indicated order. Each sub-anylysis got its own documentation on how to be run, and the necessary files ofter come from the previous analysis.
 
-For more information on the files formats or the aim of each sub-anylisis, see the corresonding documentation.
+For more information on the files formats or the aim of each sub-anylisis, see the corresponding documentation.
